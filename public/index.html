@@ -34,14 +34,15 @@
             </div>
             <div class="status-badge">
                 <div class="search-box">
-                    <input type="text" id="city-search" placeholder="Пошук міста...">
+                    <input type="text" id="city-search" data-i18n="placeholder:searchCity" placeholder="Пошук міста...">
                     <button id="search-btn">🔍</button>
                 </div>
                 <div class="live-status">
                     <span class="status-dot"></span>
-                    <span class="status-label">Актуально</span>
+                    <span class="status-label" data-i18n="actual">Актуально</span>
                     <small id="update-time">--:--</small>
                 </div>
+                <div id="lang-toggle" style="cursor: pointer; margin-left: 12px; font-weight: bold; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 8px;">EN</div>
             </div>
         </header>
 
@@ -53,12 +54,12 @@
                     <span id="current-temp" class="temp-display">--°C</span>
                 </div>
                 <div class="weather-desc">
-                    <h3 id="weather-condition">Аналізуємо...</h3>
+                    <h3 id="weather-condition" data-i18n="analyzing">Аналізуємо...</h3>
                     <p id="weather-feels">Відчувається як --°C</p>
                 </div>
                 <div class="sun-times">
-                    <div class="sun-item">🌅 Схід: <strong id="sunrise-val">--:--</strong></div>
-                    <div class="sun-item">🌇 Захід: <strong id="sunset-val">--:--</strong></div>
+                    <div class="sun-item">🌅 <span data-i18n="sunrise">Схід</span>: <strong id="sunrise-val">--:--</strong></div>
+                    <div class="sun-item">🌇 <span data-i18n="sunset">Захід</span>: <strong id="sunset-val">--:--</strong></div>
                 </div>
             </div>
             
@@ -66,11 +67,11 @@
             <div class="glass card chart-card fade-in-up" style="animation-delay: 0.1s;">
                 <div class="chart-header">
                     <div class="chart-tabs">
-                        <button class="tab-btn active" data-mode="temp">Темп</button>
-                        <button class="tab-btn" data-mode="precip_prob">Шанс (%)</button>
-                        <button class="tab-btn" data-mode="precip">Об'єм (мм)</button>
-                        <button class="tab-btn" data-mode="wind">Вітер</button>
-                        <button class="tab-btn" data-mode="press">Тиск</button>
+                        <button class="tab-btn active" data-mode="temp" data-i18n="tabTemp">Темп</button>
+                        <button class="tab-btn" data-mode="precip_prob" data-i18n="tabProb">Шанс (%)</button>
+                        <button class="tab-btn" data-mode="precip" data-i18n="tabVol">Об'єм (мм)</button>
+                        <button class="tab-btn" data-mode="wind" data-i18n="tabWind">Вітер</button>
+                        <button class="tab-btn" data-mode="press" data-i18n="tabPress">Тиск</button>
                     </div>
                 </div>
                 <div class="canvas-wrapper">
@@ -81,12 +82,12 @@
 
         <!-- Expanded Compact Stats Row with Clear Labels -->
         <section class="compact-stats fade-in-up" style="animation-delay: 0.15s;">
-            <div class="glass stats-pill">🧿 UV-індекс: <strong id="uv-val">--</strong></div>
-            <div class="glass stats-pill">🌬️ Пориви вітру: <strong id="wind-gust">--</strong></div>
-            <div class="glass stats-pill">🌀 Вологість: <strong id="humidity-val">--%</strong></div>
-            <div class="glass stats-pill">💧 Шанс опадів: <strong id="precip-prob">--%</strong></div>
-            <div class="glass stats-pill">👁️ Видимість: <strong id="vis-val">--</strong></div>
-            <div class="glass stats-pill">🌡️ Тиск: <strong id="press-val">--</strong></div>
+            <div class="glass stats-pill">🧿 <span data-i18n="uvIndex">UV-індекс</span>: <strong id="uv-val">--</strong></div>
+            <div class="glass stats-pill">🌬️ <span data-i18n="windGusts">Пориви вітру</span>: <strong id="wind-gust">--</strong></div>
+            <div class="glass stats-pill">🌀 <span data-i18n="humidity">Вологість</span>: <strong id="humidity-val">--%</strong></div>
+            <div class="glass stats-pill">💧 <span data-i18n="precipChance">Шанс опадів</span>: <strong id="precip-prob">--%</strong></div>
+            <div class="glass stats-pill">👁️ <span data-i18n="visibility">Видимість</span>: <strong id="vis-val">--</strong></div>
+            <div class="glass stats-pill">🌡️ <span data-i18n="pressure">Тиск</span>: <strong id="press-val">--</strong></div>
         </section>
 
         <!-- Weekly Forecast Selector -->
@@ -108,7 +109,7 @@
                 <div class="footer-left">
                     <p class="copyright">© <span id="copyright-year"></span> Parasol Sentinel — Інтелектуальний моніторинг</p>
                     <a href="https://t.me/parasol_wbot" target="_blank" class="bot-btn">
-                        <i class="fab fa-telegram-plane"></i> Відкрити Parasol Bot
+                        <i class="fab fa-telegram-plane"></i> <span data-i18n="openBot">Відкрити Parasol Bot</span>
                     </a>
                 </div>
                 
