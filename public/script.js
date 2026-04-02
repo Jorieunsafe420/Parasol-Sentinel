@@ -3,6 +3,105 @@ let weatherChart = null;
 let currentMode = 'temp';
 let weatherData = null; // Store fetched data globally for switching
 
+const i18n = {
+    uk: {
+        actual: "Актуально",
+        sunrise: "Схід",
+        sunset: "Захід",
+        tabTemp: "Темп",
+        tabProb: "Шанс (%)",
+        tabVol: "Об'єм (мм)",
+        tabWind: "Вітер",
+        tabPress: "Тиск",
+        uvIndex: "UV-індекс",
+        windGusts: "Пориви вітру",
+        humidity: "Вологість",
+        precipChance: "Шанс опадів",
+        visibility: "Видимість",
+        pressure: "Тиск",
+        openBot: "Відкрити Parasol Bot",
+        searchCity: "Пошук міста...",
+        feelsLike: "Відчувається як",
+        analyzing: "Аналізуємо...",
+        cityNotFound: "Місто не знайдено",
+        defaultCity: "Ваша Локація",
+        chartNoData: "Погодинний прогноз недоступний",
+        chartTemp: "Темп (°C)",
+        chartWind: "Вітер (км/год)",
+        chartPrecip: "Опади (мм)",
+        chartProb: "Шанс опадів (%)",
+        chartPress: "Тиск (mb)",
+        transl: { // weather translation
+            200: 'Гроза', 201: 'Гроза з дощем', 202: 'Сильна гроза', 233: 'Гроза',
+            300: 'Мряка', 301: 'Мряка', 302: 'Сильна мряка',
+            500: 'Невеликий дощ', 501: 'Помірний дощ', 502: 'Сильний дощ', 
+            520: 'Слабкий дощ', 521: 'Злива', 522: 'Сильна злива',
+            600: 'Невеликий сніг', 601: 'Сніг', 602: 'Сильний снігопад', 610: 'Сніг з дощем',
+            700: 'Димка', 741: 'Туман', 751: 'Мла',
+            800: 'Ясно', 801: 'Легка хмарність', 802: 'Мінлива хмарність', 803: 'Хмарно', 804: 'Пасмурно'
+        }
+    },
+    en: {
+        actual: "Live",
+        sunrise: "Sunrise",
+        sunset: "Sunset",
+        tabTemp: "Temp",
+        tabProb: "Prob (%)",
+        tabVol: "Vol (mm)",
+        tabWind: "Wind",
+        tabPress: "Pres",
+        uvIndex: "UV Index",
+        windGusts: "Wind Gusts",
+        humidity: "Humidity",
+        precipChance: "Precip chance",
+        visibility: "Visibility",
+        pressure: "Pressure",
+        openBot: "Open Parasol Bot",
+        searchCity: "Search city...",
+        feelsLike: "Feels like",
+        analyzing: "Analyzing...",
+        cityNotFound: "City not found",
+        defaultCity: "Your Location",
+        chartNoData: "Hourly forecast unavailable",
+        chartTemp: "Temp (°C)",
+        chartWind: "Wind (km/h)",
+        chartPrecip: "Precip (mm)",
+        chartProb: "Precip Chance (%)",
+        chartPress: "Pressure (mb)",
+        transl: {
+            200: 'Thunderstorm', 201: 'Thunderstorm with rain', 202: 'Heavy thunderstorm', 233: 'Thunderstorm',
+            300: 'Drizzle', 301: 'Drizzle', 302: 'Heavy drizzle',
+            500: 'Light rain', 501: 'Moderate rain', 502: 'Heavy rain', 
+            520: 'Light shower', 521: 'Shower', 522: 'Heavy shower',
+            600: 'Light snow', 601: 'Snow', 602: 'Heavy snow', 610: 'Sleet',
+            700: 'Mist', 741: 'Fog', 751: 'Haze',
+            800: 'Clear', 801: 'Few clouds', 802: 'Partly cloudy', 803: 'Cloudy', 804: 'Overcast'
+        }
+    }
+};
+
+let currentLang = localStorage.getItem('lang');
+if (!currentLang) {
+    currentLang = (navigator.language.startsWith('uk') || navigator.language.startsWith('ru')) ? 'uk' : 'en';
+}
+let currentDailyIndex = 0;
+
+function updateTexts() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key.startsWith('placeholder:')) {
+            el.placeholder = i18n[currentLang][key.split(':')[1]];
+        } else {
+            el.textContent = i18n[currentLang][key];
+        }
+    });
+    
+    const toggleBtn = document.getElementById('lang-toggle');
+    if (toggleBtn) {
+        toggleBtn.textContent = currentLang === 'uk' ? 'EN' : 'UK';
+    }
+}
+
 // DOM Elements
 const currentTemp = document.getElementById('current-temp');
 const weatherCondition = document.getElementById('weather-condition');
@@ -34,9 +133,24 @@ async function init() {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentMode = btn.dataset.mode;
-            renderChart();
+            renderChart(currentDailyIndex);
         });
     });
+
+    const toggleBtn = document.getElementById('lang-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'uk' ? 'en' : 'uk';
+            localStorage.setItem('lang', currentLang);
+            updateTexts();
+            updateCurrentDate();
+            updateUpdateTime();
+            if (weatherData) {
+                updateUI(currentDailyIndex);
+            }
+        });
+        updateTexts();
+    }
 }
 
 async function searchCity() {
@@ -51,7 +165,7 @@ async function searchCity() {
             const name = display_name.split(',')[0];
             await fetchOpenMeteo(lat, lon, name);
         } else {
-            alert('Місто не знайдено');
+            alert(i18n[currentLang].cityNotFound);
         }
     } catch (e) {
         console.error('Search error:', e);
@@ -75,7 +189,7 @@ async function loadWeatherData(userId, forceRefresh = false) {
             } else {
                 weatherData = data;
                 // Weatherbit puts city name inside 'current'
-                currentCity.textContent = data.current?.city_name || 'Ваша Локація';
+                currentCity.textContent = data.current?.city_name || i18n[currentLang].defaultCity;
                 accessType.textContent = 'Premium Status';
             }
             updateUI(0); // Show today by default
@@ -105,7 +219,8 @@ async function fetchOpenMeteo(lat, lon, name) {
 
 function updateUpdateTime() {
     const now = new Date();
-    updateTime.textContent = now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+    updateTime.textContent = now.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
 }
 
 function normalizeOpenMeteo(om, name) {
@@ -157,6 +272,7 @@ function normalizeOpenMeteo(om, name) {
 
 function updateUI(dayIndex) {
     if (!weatherData) return;
+    currentDailyIndex = dayIndex;
     const isToday = dayIndex === 0;
     const day = isToday ? weatherData.current : weatherData.daily[dayIndex];
     const details = weatherData.daily[dayIndex];
@@ -166,21 +282,12 @@ function updateUI(dayIndex) {
     const apparentTemp = day.app_temp !== undefined ? day.app_temp : (day.app_max_temp !== undefined ? day.app_max_temp : mainTemp);
 
     const translateWeather = (code, defaultText) => {
-        const map = {
-            200: 'Гроза', 201: 'Гроза з дощем', 202: 'Сильна гроза', 233: 'Гроза',
-            300: 'Мряка', 301: 'Мряка', 302: 'Сильна мряка',
-            500: 'Невеликий дощ', 501: 'Помірний дощ', 502: 'Сильний дощ', 
-            520: 'Слабкий дощ', 521: 'Злива', 522: 'Сильна злива',
-            600: 'Невеликий сніг', 601: 'Сніг', 602: 'Сильний снігопад', 610: 'Сніг з дощем',
-            700: 'Димка', 741: 'Туман', 751: 'Мла',
-            800: 'Ясно', 801: 'Легка хмарність', 802: 'Мінлива хмарність', 803: 'Хмарно', 804: 'Пасмурно'
-        };
-        return map[code] || defaultText;
+        return i18n[currentLang].transl[code] || defaultText;
     };
 
     currentTemp.textContent = `${Math.round(mainTemp)}°C`;
-    weatherCondition.textContent = translateWeather(day.weather?.code, day.weather?.description || day.weather?.desc || 'Аналізуємо...');
-    weatherFeels.textContent = `Відчувається як ${Math.round(apparentTemp)}°C`;
+    weatherCondition.textContent = translateWeather(day.weather?.code, day.weather?.description || day.weather?.desc || i18n[currentLang].analyzing);
+    weatherFeels.textContent = `${i18n[currentLang].feelsLike} ${Math.round(apparentTemp)}°C`;
 
     // Premium Icon Upgrade
     weatherIcon.src = getPremiumIcon(day.weather.icon);
@@ -252,33 +359,34 @@ function renderChart(dayOffset = 0) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
         ctx.textAlign = "center";
         ctx.font = "14px Inter";
-        ctx.fillText("Погодинний прогноз недоступний", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        ctx.fillText(i18n[currentLang].chartNoData, ctx.canvas.width / 2, ctx.canvas.height / 2);
         return;
     }
 
-    const labels = dataSlice.time.slice(start, start + 24).map(t => new Date(t).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' }));
+    const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+    const labels = dataSlice.time.slice(start, start + 24).map(t => new Date(t).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }));
 
     let datasetLabel = '';
     let datasetData = [];
     let color = '#00F260';
 
     if (currentMode === 'temp') {
-        datasetLabel = 'Темп (°C)';
+        datasetLabel = i18n[currentLang].chartTemp;
         datasetData = dataSlice.temperature_2m.slice(start, start + 24);
     } else if (currentMode === 'wind') {
-        datasetLabel = 'Вітер (км/год)';
+        datasetLabel = i18n[currentLang].chartWind;
         datasetData = dataSlice.wind_speed_10m.slice(start, start + 24);
         color = '#38bdf8';
     } else if (currentMode === 'precip') {
-        datasetLabel = 'Опади (мм)';
+        datasetLabel = i18n[currentLang].chartPrecip;
         datasetData = dataSlice.precipitation.slice(start, start + 24);
         color = '#38bdf8';
     } else if (currentMode === 'precip_prob') {
-        datasetLabel = 'Шанс опадів (%)';
+        datasetLabel = i18n[currentLang].chartProb;
         datasetData = dataSlice.precipitation_probability.slice(start, start + 24);
         color = '#00F260';
     } else {
-        datasetLabel = 'Тиск (mb)';
+        datasetLabel = i18n[currentLang].chartPress;
         datasetData = dataSlice.surface_pressure.slice(start, start + 24);
         color = '#fbbf24';
     }
@@ -349,8 +457,9 @@ function renderDaily(selectedIndex = 0) {
         weatherData.daily.forEach((day, index) => {
             const card = dailyForecastContainer.children[index];
             const dateObj = new Date(day.valid_date);
-            const dayOfWeek = dateObj.toLocaleDateString('uk-UA', { weekday: 'short' });
-            const dateStr = dateObj.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+            const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+            const dayOfWeek = dateObj.toLocaleDateString(loc, { weekday: 'short' });
+            const dateStr = dateObj.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
 
             let tempsStr = `<strong>${Math.round(day.temp || day.max_temp || 0)}°</strong>`;
             if (day.max_temp !== undefined && day.min_temp !== undefined) {
@@ -381,8 +490,9 @@ function renderDaily(selectedIndex = 0) {
     dailyForecastContainer.innerHTML = '';
     weatherData.daily.forEach((day, index) => {
         const dateObj = new Date(day.valid_date);
-        const dayOfWeek = dateObj.toLocaleDateString('uk-UA', { weekday: 'short' });
-        const dateStr = dateObj.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+        const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+        const dayOfWeek = dateObj.toLocaleDateString(loc, { weekday: 'short' });
+        const dateStr = dateObj.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
 
         const card = document.createElement('div');
         card.className = `forecast-card ${index === selectedIndex ? 'active' : ''} fade-in-up`;
@@ -413,12 +523,14 @@ function updateWindyWidget(lat, lon) {
 
 function formatFullTime(t) {
     if (!t) return '--:--';
-    return new Date(t).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+    return new Date(t).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
 }
 
 function updateCurrentDate() {
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    currentDate.textContent = new Date().toLocaleDateString('uk-UA', options);
+    const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
+    currentDate.textContent = new Date().toLocaleDateString(loc, options);
 }
 
 function updateCopyrightYear() {
