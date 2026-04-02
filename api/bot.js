@@ -13,6 +13,31 @@ if (!process.env.TG_TOKEN) {
 
 const bot = new Telegraf(process.env.TG_TOKEN || 'dummy-token');
 
+const dict = {
+    uk: {
+        welcome: "👋 Вітаю! Мене звати **Парасоль**.\n\nЯ буду моніторити погоду у твоєму місті та надсилатиму сповіщення про різкі зміни.\n\nНапиши назву свого міста (англійською або кирилицею):",
+        select: "🔎 Оберіть правильний варіант з переліку:",
+        notFound: "❌ Не можу знайти таке місто. Спробуйте уточнити (наприклад, додайте область).",
+        errorSearch: "❌ Сталася помилка при пошуку. Спробуйте пізніше.",
+        citySet: "Місто {city} встановлено!",
+        citySetFull: "✅ **Місто встановлено:** {city}\n🌐 Координати: {lat}, {lon}\n🌡️ Поточна температура: {temp}°C",
+        dashboard: "📊 Мій Дашборд",
+        saveError: "❌ Не вдалося зберегти вибір. Перевірте конфігурацію сервера."
+    },
+    en: {
+        welcome: "👋 Hello! My name is **Parasol**.\n\nI will monitor the weather in your city and send alerts about sudden changes.\n\nPlease type the name of your city:",
+        select: "🔎 Choose the correct option from the list:",
+        notFound: "❌ Cannot find this city. Please try to be more specific (e.g. add region/state).",
+        errorSearch: "❌ Search error occurred. Please try again later.",
+        citySet: "City {city} is set!",
+        citySetFull: "✅ **City set:** {city}\n🌐 Coordinates: {lat}, {lon}\n🌡️ Current temperature: {temp}°C",
+        dashboard: "📊 My Dashboard",
+        saveError: "❌ Failed to save. Please check server configuration."
+    }
+};
+
+const getLang = (ctx) => (ctx.from?.language_code === 'uk' || ctx.from?.language_code === 'ru') ? 'uk' : 'en';
+
 // Bot Logic (Webhook handler)
 module.exports = async (req, res) => {
     try {
@@ -42,19 +67,20 @@ module.exports = async (req, res) => {
 // /start command
 bot.start(async (ctx) => {
     console.log('Start command from:', ctx.from.id);
-    const welcome = `👋 Вітаю! Мене звати **Парасоль**.\n\nЯ буду моніторити погоду у твоєму місті та надсилатиму сповіщення про різкі зміни.\n\nНапиши назву свого міста (англійською або кирилицею):`;
-    await ctx.replyWithMarkdown(welcome);
+    const lang = getLang(ctx);
+    await ctx.replyWithMarkdown(dict[lang].welcome);
 });
 
 // Handle text messages (City search)
 bot.on('text', async (ctx) => {
     const query = ctx.message.text.trim();
     if (query.startsWith('/')) return;
+    const lang = getLang(ctx);
 
     try {
         console.log(`Searching for: ${query}`);
         // Using Nominatim for better search with multiple results
-        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&accept-language=uk`;
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&accept-language=${lang}`;
         const response = await axios.get(nominatimUrl, {
             headers: { 'User-Agent': 'WeatherSentinelBot/1.0' }
         });
@@ -68,15 +94,15 @@ bot.on('text', async (ctx) => {
                 return [{ text: name, callback_data: callbackData.slice(0, 64) }];
             });
 
-            await ctx.reply('🔎 Оберіть правильний варіант з переліку:', {
+            await ctx.reply(dict[lang].select, {
                 reply_markup: { inline_keyboard: buttons }
             });
         } else {
-            await ctx.reply('❌ Не можу знайти таке місто. Спробуйте уточнити (наприклад, додайте область).');
+            await ctx.reply(dict[lang].notFound);
         }
     } catch (error) {
         console.error('Search Error:', error.message);
-        await ctx.reply('❌ Сталася помилка при пошуку. Спробуйте пізніше.');
+        await ctx.reply(dict[lang].errorSearch);
     }
 });
 
@@ -85,10 +111,11 @@ bot.on('callback_query', async (ctx) => {
     const data = ctx.callbackQuery.data.split('|');
     if (data[0] === 'set') {
         const [_, lat, lon, cityName] = data;
+        const lang = getLang(ctx);
 
         try {
             await connectDB();
-            
+
             // Validate and get initial weather from Weatherbit using coordinates
             const weatherbitUrl = `https://api.weatherbit.io/v2.0/current?lat=${lat}&lon=${lon}&key=${process.env.WEATHERBIT_KEY}`;
             const weatherRes = await axios.get(weatherbitUrl);
@@ -113,19 +140,19 @@ bot.on('callback_query', async (ctx) => {
 
             const domain = process.env.DOMAIN || 'localhost';
             const dashboardUrl = `${domain.startsWith('http') ? '' : 'https://'}${domain}/?user=${ctx.from.id}`;
-            
-            await ctx.answerCbQuery(`Місто ${weather.city_name} встановлено!`);
-            await ctx.editMessageText(`✅ **Місто встановлено:** ${weather.city_name}\n🌐 Координати: ${lat}, ${lon}\n🌡️ Поточна температура: ${weather.temp}°C`, {
+
+            await ctx.answerCbQuery(dict[lang].citySet.replace('{city}', weather.city_name));
+            await ctx.editMessageText(dict[lang].citySetFull.replace('{city}', weather.city_name).replace('{lat}', lat).replace('{lon}', lon).replace('{temp}', weather.temp), {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: "📊 Мій Дашборд", url: dashboardUrl }]
+                        [{ text: dict[lang].dashboard, url: dashboardUrl }]
                     ]
                 }
             });
         } catch (error) {
             console.error('Save Error:', error.message);
-            await ctx.reply('❌ Не вдалося зберегти вибір. Перевірте конфігурацію сервера.');
+            await ctx.reply(dict[lang].saveError);
         }
     }
 });
