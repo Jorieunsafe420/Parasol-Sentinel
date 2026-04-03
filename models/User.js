@@ -13,6 +13,7 @@ const UserSchema = new mongoose.Schema({
         updatedAt: { type: Date, default: Date.now },
         fullData: Object // Storing the complete response for site display
     },
+    language: { type: String, default: 'uk' },
     notificationsEnabled: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
