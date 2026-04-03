@@ -77,6 +77,17 @@ const validateTelegramInitData = (initData, botToken) => {
     }
 };
 
+/**
+ * Escapes characters for HTML to prevent Telegram parse errors.
+ */
+const escapeHTML = (text) => {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+};
+
 module.exports = {
     sleep,
     truncate,
