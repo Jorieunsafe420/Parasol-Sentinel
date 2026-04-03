@@ -6,6 +6,7 @@ const DEFAULT_CITY = 'Kyiv';
 let weatherChart = null;
 let currentMode = 'temp';
 let weatherData = null; // Store fetched data globally for switching
+let currentStatusKey = 'freeAccess';
 
 const i18n = {
     uk: {
@@ -117,6 +118,8 @@ function updateTexts() {
     document.querySelectorAll('.lang-toggle-btn').forEach(btn => {
         btn.textContent = currentLang === 'uk' ? 'EN' : 'UK';
     });
+
+    if (accessType) accessType.textContent = i18n[currentLang][currentStatusKey];
 }
 
 // DOM Elements
@@ -203,13 +206,14 @@ async function loadWeatherData(userId, sig = '', forceRefresh = false) {
             if (data.cached && data.lastState && data.lastState.fullData) {
                 weatherData = data.lastState.fullData;
                 currentCity.textContent = data.user.city;
-                accessType.textContent = i18n[currentLang].sentinelDashboard;
+                currentStatusKey = 'sentinelDashboard';
             } else {
                 weatherData = data;
                 // Weatherbit puts city name inside 'current'
                 currentCity.textContent = data.current?.city_name || i18n[currentLang].defaultCity;
-                accessType.textContent = i18n[currentLang].premiumStatus;
+                currentStatusKey = 'premiumStatus';
             }
+            accessType.textContent = i18n[currentLang][currentStatusKey];
             updateUI(0); // Show today by default
             const lat = data.user?.lat || data.lat || DEFAULT_LAT;
             const lon = data.user?.lon || data.lon || DEFAULT_LON;
@@ -232,9 +236,9 @@ async function fetchOpenMeteo(lat, lon, name) {
 
         weatherData = normalizeOpenMeteo(omData, name);
         currentCity.textContent = name;
+        currentStatusKey = 'freeAccess';
         updateUI(0);
         updateWindyWidget(lat, lon);
-        accessType.textContent = i18n[currentLang].freeAccess;
         updateUpdateTime();
     } catch (error) {
         console.error('Open-Meteo Error:', error);
