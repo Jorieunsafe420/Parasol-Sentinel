@@ -21,6 +21,7 @@ const dict = {
         citySet: "Місто {city} встановлено!",
         citySetFull: "✅ **Місто встановлено:** {city}\n🌐 Координати: {lat}, {lon}\n🌡️ Поточна температура: {temp}°C",
         dashboard: "📊 Мій Дашборд",
+        settingsBtn: "⚙️ Налаштування",
         saveError: "❌ Не вдалося зберегти вибір. Перевірте конфігурацію сервера.",
         settings: "⚙️ *Налаштування*",
         settingsWind: "🌬 Вітер:",
@@ -40,6 +41,7 @@ const dict = {
         citySet: "City {city} is set!",
         citySetFull: "✅ **City set:** {city}\n🌐 Coordinates: {lat}, {lon}\n🌡️ Current temperature: {temp}°C",
         dashboard: "📊 My Dashboard",
+        settingsBtn: "⚙️ Settings",
         saveError: "❌ Failed to save. Please check server configuration.",
         settings: "⚙️ *Settings*",
         settingsWind: "🌬 Wind:",
@@ -104,7 +106,23 @@ module.exports = async (req, res) => {
 bot.start(async (ctx) => {
     console.log('Start command from:', ctx.from.id);
     const lang = getLang(ctx);
-    await ctx.replyWithMarkdown(dict[lang].welcome);
+    await connectDB();
+    const user = await User.findOne({ telegramId: ctx.from.id });
+    
+    if (user) {
+        const sig = generateSignature(ctx.from.id, process.env.CRON_SECRET);
+        const dashboardUrl = formatUrl(process.env.DOMAIN || 'localhost', `/?user=${ctx.from.id}&sig=${sig}`);
+        await ctx.replyWithMarkdown(dict[lang].welcome, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: dict[lang].dashboard, url: dashboardUrl }],
+                    [{ text: dict[lang].settingsBtn, callback_data: 'open_settings' }]
+                ]
+            }
+        });
+    } else {
+        await ctx.replyWithMarkdown(dict[lang].welcome);
+    }
 });
 
 // /settings command
@@ -219,13 +237,25 @@ bot.on('callback_query', async (ctx) => {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: dict[lang].dashboard, url: dashboardUrl }]
+                        [{ text: dict[lang].dashboard, url: dashboardUrl }],
+                        [{ text: dict[lang].settingsBtn, callback_data: 'open_settings' }]
                     ]
                 }
             });
         } catch (error) {
             await ctx.replyWithMarkdown(dict[lang].saveError);
         }
+    }
+
+    // --- Open Settings manual callback ---
+    else if (data[0] === 'open_settings') {
+        const user = await User.findOne({ telegramId: ctx.from.id });
+        if (!user) return ctx.answerCbQuery('❌ Error');
+        await ctx.answerCbQuery();
+        await ctx.replyWithMarkdown(
+            dict[lang].settings,
+            { reply_markup: buildSettingsKeyboard(lang, user.units) }
+        );
     }
 
     // --- Units change callback (wind or pressure) ---
