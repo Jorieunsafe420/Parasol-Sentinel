@@ -97,7 +97,7 @@ module.exports = async (req, res) => {
 
         // Send summary log to private channel
         const summary = [
-            `📋 *Вечірній прогноз* — ${startTime}`,
+            `📋 <b>Вечірній прогноз</b> — ${startTime}`,
             `👥 Користувачів перевірено: ${users.length}`,
             `📨 Прогнозів надіслано: ${sent}`,
             `❌ Помилок: ${errors}`,
@@ -110,7 +110,7 @@ module.exports = async (req, res) => {
         res.status(200).send(`Sent ${users.length} forecasts`);
     } catch (error) {
         console.error(error);
-        await log(`❌ *Cron Forecast FAILED* — ${startTime}\n\`${error.message}\``);
+        await log(`❌ <b>Cron Forecast FAILED</b> — ${startTime}\n<code>${error.message}</code>`);
         res.status(500).send('Cron Forecast Error');
     }
 }
