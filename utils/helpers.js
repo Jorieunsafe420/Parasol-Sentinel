@@ -48,14 +48,33 @@ const generateSignature = (data, secret) => {
 };
 
 /**
- * Escapes characters for HTML to prevent Telegram parse errors.
+ * Validate Telegram WebApp initData (стандарт Telegram 2025+)
  */
-const escapeHTML = (text) => {
-    if (!text) return '';
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+const validateTelegramInitData = (initData, botToken) => {
+    try {
+        const urlParams = new URLSearchParams(initData);
+        const hash = urlParams.get('hash');
+        urlParams.delete('hash');
+        
+        // Sort keys alphabetically
+        const keys = Array.from(urlParams.keys()).sort();
+        const dataCheckString = keys.map(key => `${key}=${urlParams.get(key)}`).join('\n');
+
+        const secretKey = crypto
+            .createHmac('sha256', 'WebAppData')
+            .update(botToken)
+            .digest();
+
+        const calculatedHash = crypto
+            .createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex');
+
+        return calculatedHash === hash;
+    } catch (e) {
+        console.error('InitData validation error:', e.message);
+        return false;
+    }
 };
 
 module.exports = {
@@ -63,5 +82,6 @@ module.exports = {
     truncate,
     formatUrl,
     generateSignature,
+    validateTelegramInitData,
     escapeHTML
 };
