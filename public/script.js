@@ -40,7 +40,7 @@ const i18n = {
         dashboard: "Панель керування",
         freeAccess: "Безкоштовний доступ",
         premiumStatus: "Преміум статус",
-        sentinelDashboard: "Панель Sentinel",
+        sentinelDashboard: "Преміум статус",
         transl: { // weather translation
             200: 'Гроза', 201: 'Гроза з дощем', 202: 'Сильна гроза', 233: 'Гроза',
             300: 'Мряка', 301: 'Мряка', 302: 'Сильна мряка',
