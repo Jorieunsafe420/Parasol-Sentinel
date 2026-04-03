@@ -9,13 +9,12 @@ const { getWeatherDesc } = require('../utils/weather');
 const { sleep, formatUrl, generateSignature, escapeHTML } = require('../utils/helpers');
 
 const API_KEY = process.env.WEATHERBIT_KEY;
-const LOG_CHAT_ID = process.env.LOG_CHAT_ID;
-
-// Wrapper for the shared logger
-const log = (text) => logToTelegram(bot, LOG_CHAT_ID, text);
-
 // Main Handler
 module.exports = async (req, res) => {
+    const LOG_CHAT_ID = process.env.LOG_CHAT_ID;
+    
+    // Wrapper for the shared logger
+    const log = (text) => logToTelegram(bot, LOG_CHAT_ID, text);
     // Basic auth/token check
     if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).send('Unauthorized');
 
