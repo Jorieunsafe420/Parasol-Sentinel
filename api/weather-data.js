@@ -39,6 +39,7 @@ module.exports = async (req, res) => {
             return res.status(200).json({
                 cached: true,
                 user: { city: userData.city, lat: userData.lat, lon: userData.lon },
+                units: userData.units || { wind: 'ms', pressure: 'mmhg' },
                 lastState: userData.lastState
             });
         }
@@ -85,6 +86,9 @@ module.exports = async (req, res) => {
             lon: cityLon
         };
 
+        // Attach user unit preferences so the site can display correctly
+        const unitsToReturn = userData?.units || { wind: 'ms', pressure: 'mmhg' };
+
         // Cache update in DB if user is registered
         if (userData) {
             await User.updateOne(
@@ -100,7 +104,7 @@ module.exports = async (req, res) => {
             );
         }
 
-        res.status(200).json(responseData);
+        res.status(200).json({ ...responseData, units: unitsToReturn });
     } catch (error) {
         console.error('Weather Data Error:', error.response ? error.response.data : error.message);
         res.status(500).json({ 
