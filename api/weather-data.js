@@ -1,6 +1,8 @@
+require('dotenv').config();
 const axios = require('axios');
 const connectDB = require('../utils/db');
 const User = require('../models/User');
+const { generateSignature } = require('../utils/helpers');
 
 const API_KEY = process.env.WEATHERBIT_KEY;
 const DEFAULT_CITY = 'Kyiv';
@@ -8,10 +10,16 @@ const DEFAULT_CITY = 'Kyiv';
 module.exports = async (req, res) => {
     try {
         await connectDB();
-        const { user: userId, refresh } = req.query;
+        const { user: userId, sig, refresh } = req.query;
+        const SECRET = process.env.CRON_SECRET;
 
         let userData = null;
         if (userId) {
+            // Verify signature to protect privacy
+            const expectedSig = generateSignature(userId, SECRET);
+            if (!sig || sig !== expectedSig) {
+                return res.status(401).json({ error: 'Unauthorized access: Invalid or missing signature' });
+            }
             userData = await User.findOne({ telegramId: Number(userId) });
         }
 
@@ -20,9 +28,9 @@ module.exports = async (req, res) => {
         const lon = userData ? userData.lon : 30.5234;
 
         // If no refresh requested, try to return cached data from MongoDB
-        // SMART CHECK: only use cache if it has hourly data (from Open-Meteo) and is less than 30 minutes old
+        // SMART CHECK: only use cache if it has hourly data (from Open-Meteo) and is less than 120 minutes old
         const lastUpdated = userData?.lastState?.updatedAt ? new Date(userData.lastState.updatedAt).getTime() : 0;
-        const isCacheValid = (Date.now() - lastUpdated) < 30 * 60 * 1000;
+        const isCacheValid = (Date.now() - lastUpdated) < 120 * 60 * 1000;
 
         if (!refresh && isCacheValid && userData && userData.lastState && userData.lastState.fullData && 
             userData.lastState.fullData.hourly && userData.lastState.fullData.hourly.time && 
@@ -35,10 +43,12 @@ module.exports = async (req, res) => {
             });
         }
 
+        const lang = userData?.language || 'uk';
+
         // Fetch FRESH data - HYBRID ENGINE
         // 1. Weatherbit (Accuracy) - Current & Daily
-        const currentRes = await axios.get(`https://api.weatherbit.io/v2.0/current?city=${encodeURIComponent(city)}&key=${API_KEY}&lang=uk`).catch(e => { console.error('Weatherbit Current Error:', e.message); return null; });
-        const dailyRes = await axios.get(`https://api.weatherbit.io/v2.0/forecast/daily?city=${encodeURIComponent(city)}&key=${API_KEY}&days=7&lang=uk`).catch(e => { console.error('Weatherbit Daily Error:', e.message); return null; });
+        const currentRes = await axios.get(`https://api.weatherbit.io/v2.0/current?lat=${lat}&lon=${lon}&key=${API_KEY}&lang=${lang}`).catch(e => { console.error('Weatherbit Current Error:', e.message); return null; });
+        const dailyRes = await axios.get(`https://api.weatherbit.io/v2.0/forecast/daily?lat=${lat}&lon=${lon}&key=${API_KEY}&days=7&lang=${lang}`).catch(e => { console.error('Weatherbit Daily Error:', e.message); return null; });
 
         if (!currentRes || !dailyRes) {
             throw new Error('Could not fetch core data from Weatherbit. Check API Key.');

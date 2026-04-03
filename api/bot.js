@@ -1,17 +1,16 @@
-const { Telegraf } = require('telegraf');
+const getBot = require('../utils/bot');
+const bot = getBot();
 const axios = require('axios');
-const mongoose = require('mongoose');
 require('dotenv').config();
 
 const User = require('../models/User');
-
 const connectDB = require('../utils/db');
+const { formatUrl, generateSignature } = require('../utils/helpers');
 
-if (!process.env.TG_TOKEN) {
-    console.error('CRITICAL ERROR: TG_TOKEN is missing in environment variables!');
-}
-
-const bot = new Telegraf(process.env.TG_TOKEN || 'dummy-token');
+/**
+ * Parasol Sentinel Bot - Core logic handler.
+ * Design Choice: Using a hybrid approach (Serverless Webhook + Polling for Local Dev).
+ */
 
 const dict = {
     uk: {
@@ -49,13 +48,10 @@ module.exports = async (req, res) => {
 
         // Handle Webhook request
         if (req.method === 'POST') {
-            console.log('--- Incoming Telegram Update ---');
-            console.log(JSON.stringify(req.body, null, 2));
             await bot.handleUpdate(req.body);
             res.status(200).send('OK');
         } else {
-            console.log('GET request received on bot API');
-            res.status(200).send('Bot is running...');
+            res.status(200).send('Parasol Sentinel Bot is active.');
         }
     } catch (e) {
         console.error('Handler Error:', e.message);
@@ -80,29 +76,39 @@ bot.on('text', async (ctx) => {
     try {
         console.log(`Searching for: ${query}`);
         // Using Nominatim for better search with multiple results
+        // Added User-Agent (required by Nominatim) and explicit language
         const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&accept-language=${lang}`;
         const response = await axios.get(nominatimUrl, {
-            headers: { 'User-Agent': 'WeatherSentinelBot/1.0' }
+            headers: { 'User-Agent': 'ParasolSentinelBot/1.1' }
         });
 
-        if (response.data && response.data.length > 0) {
+        if (response.data?.length > 0) {
             const buttons = response.data.map(item => {
-                const name = item.display_name.split(',').slice(0, 3).join(',');
-                // Store coordinates and city name in callback data (limited to 64 chars)
-                // We'll use a short format: lat|lon|city_name
-                const callbackData = `set|${item.lat}|${item.lon}|${item.address.city || item.address.town || item.address.village || query.slice(0, 15)}`;
-                return [{ text: name, callback_data: callbackData.slice(0, 64) }];
+                // Shorten name for the button text
+                const name = item.display_name.split(',').slice(0, 3).join(',').trim();
+                
+                // Telegram callback_data limit is 64 bytes.
+                // Format: set|lat|lon|city_name
+                const lat = parseFloat(item.lat).toFixed(3);
+                const lon = parseFloat(item.lon).toFixed(3);
+                
+                // Prioritize city name from address object
+                const cityNameRaw = item.address?.city || item.address?.town || item.address?.village || query;
+                const cityName = cityNameRaw.slice(0, 30);
+                const callbackData = `set|${lat}|${lon}|${cityName}`;
+
+                return [{ text: name, callback_data: callbackData }];
             });
 
             await ctx.reply(dict[lang].select, {
                 reply_markup: { inline_keyboard: buttons }
             });
         } else {
-            await ctx.reply(dict[lang].notFound);
+            await ctx.replyWithMarkdown(dict[lang].notFound);
         }
     } catch (error) {
         console.error('Search Error:', error.message);
-        await ctx.reply(dict[lang].errorSearch);
+        await ctx.replyWithMarkdown(dict[lang].errorSearch);
     }
 });
 
@@ -119,6 +125,8 @@ bot.on('callback_query', async (ctx) => {
             // Validate and get initial weather from Weatherbit using coordinates
             const weatherbitUrl = `https://api.weatherbit.io/v2.0/current?lat=${lat}&lon=${lon}&key=${process.env.WEATHERBIT_KEY}`;
             const weatherRes = await axios.get(weatherbitUrl);
+            
+            if (!weatherRes.data?.data?.[0]) throw new Error('No weather data received');
             const weather = weatherRes.data.data[0];
 
             await User.findOneAndUpdate(
@@ -129,6 +137,7 @@ bot.on('callback_query', async (ctx) => {
                     lat: parseFloat(lat),
                     lon: parseFloat(lon),
                     timezone: weather.timezone,
+                    language: lang,
                     lastState: {
                         temp: weather.temp,
                         weatherCode: weather.weather.code,
@@ -138,11 +147,18 @@ bot.on('callback_query', async (ctx) => {
                 { upsert: true, new: true }
             );
 
-            const domain = process.env.DOMAIN || 'localhost';
-            const dashboardUrl = `${domain.startsWith('http') ? '' : 'https://'}${domain}/?user=${ctx.from.id}`;
+            const sig = generateSignature(ctx.from.id, process.env.CRON_SECRET);
+            const dashboardUrl = formatUrl(process.env.DOMAIN || 'localhost', `/?user=${ctx.from.id}&sig=${sig}`);
 
             await ctx.answerCbQuery(dict[lang].citySet.replace('{city}', weather.city_name));
-            await ctx.editMessageText(dict[lang].citySetFull.replace('{city}', weather.city_name).replace('{lat}', lat).replace('{lon}', lon).replace('{temp}', weather.temp), {
+            
+            const messageText = dict[lang].citySetFull
+                .replace('{city}', weather.city_name)
+                .replace('{lat}', lat)
+                .replace('{lon}', lon)
+                .replace('{temp}', Math.round(weather.temp));
+
+            await ctx.editMessageText(messageText, {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
@@ -151,8 +167,22 @@ bot.on('callback_query', async (ctx) => {
                 }
             });
         } catch (error) {
-            console.error('Save Error:', error.message);
-            await ctx.reply(dict[lang].saveError);
+            await ctx.replyWithMarkdown(dict[lang].saveError);
         }
     }
 });
+
+// --- Local Development Support (Polling Mode) ---
+// If the script is run directly (not via a serverless require), launch in polling mode.
+if (require.main === module) {
+    (async () => {
+        try {
+            console.log('🔄 Launching Parasol Sentinel in POLLING mode (Local Dev)...');
+            await connectDB();
+            await bot.launch();
+            console.log('🚀 Bot is active and polling.');
+        } catch (e) {
+            console.error('❌ Failed to launch bot locally:', e.message);
+        }
+    })();
+}
