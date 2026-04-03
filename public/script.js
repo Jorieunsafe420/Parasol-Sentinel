@@ -1,4 +1,8 @@
 const API_URL = '/api/weather-data';
+const DEFAULT_LAT = 50.4501;
+const DEFAULT_LON = 30.5234;
+const DEFAULT_CITY = 'Київ';
+
 let weatherChart = null;
 let currentMode = 'temp';
 let weatherData = null; // Store fetched data globally for switching
@@ -39,7 +43,7 @@ const i18n = {
             520: 'Слабкий дощ', 521: 'Злива', 522: 'Сильна злива',
             600: 'Невеликий сніг', 601: 'Сніг', 602: 'Сильний снігопад', 610: 'Сніг з дощем',
             700: 'Димка', 741: 'Туман', 751: 'Мла',
-            800: 'Ясно', 801: 'Легка хмарність', 802: 'Мінлива хмарність', 803: 'Хмарно', 804: 'Пасмурно'
+            800: 'Ясно', 801: 'Легка хмарність', 802: 'Мінлива хмарність', 803: 'Хмарно', 804: 'Похмуро'
         }
     },
     en: {
@@ -117,10 +121,11 @@ const accessType = document.getElementById('access-type');
 async function init() {
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('user');
+    const sig = urlParams.get('sig');
 
     updateCurrentDate();
     updateCopyrightYear();
-    await loadWeatherData(userId);
+    await loadWeatherData(userId, sig);
 
     // Search Binding
     document.getElementById('search-btn').addEventListener('click', () => searchCity());
@@ -165,20 +170,21 @@ async function searchCity() {
             const name = display_name.split(',')[0];
             await fetchOpenMeteo(lat, lon, name);
         } else {
-            alert(i18n[currentLang].cityNotFound);
+            showToast(i18n[currentLang].cityNotFound);
         }
     } catch (e) {
         console.error('Search error:', e);
     }
 }
 
-async function loadWeatherData(userId, forceRefresh = false) {
+async function loadWeatherData(userId, sig = '', forceRefresh = false) {
     try {
         if (!userId) {
-            await fetchOpenMeteo(50.4501, 30.5234, 'Київ');
+            await fetchOpenMeteo(DEFAULT_LAT, DEFAULT_LON, DEFAULT_CITY);
         } else {
             const refreshPart = forceRefresh ? '&refresh=true' : '';
-            const response = await fetch(`${API_URL}?user=${userId}${refreshPart}`);
+            const sigPart = sig ? `&sig=${sig}` : '';
+            const response = await fetch(`${API_URL}?user=${userId}${sigPart}${refreshPart}`);
             if (!response.ok) throw new Error('Internal API failed');
             const data = await response.json();
 
@@ -193,7 +199,7 @@ async function loadWeatherData(userId, forceRefresh = false) {
                 accessType.textContent = 'Premium Status';
             }
             updateUI(0); // Show today by default
-            updateWindyWidget(data.lat || 50.45, data.lon || 30.52);
+            updateWindyWidget(data.lat || DEFAULT_LAT, data.lon || DEFAULT_LON);
             updateUpdateTime();
         }
     } catch (error) {
@@ -205,16 +211,21 @@ async function loadWeatherData(userId, forceRefresh = false) {
 }
 
 async function fetchOpenMeteo(lat, lon, name) {
-    const omResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,wind_speed_10m,precipitation,precipitation_probability,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max,visibility_max&timezone=auto`);
-    if (!omResponse.ok) return;
-    const omData = await omResponse.json();
+    try {
+        const omResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,wind_speed_10m,precipitation,precipitation_probability,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_gusts_10m_max,visibility_max&timezone=auto`);
+        if (!omResponse.ok) return;
+        const omData = await omResponse.json();
 
-    weatherData = normalizeOpenMeteo(omData, name);
-    currentCity.textContent = name;
-    updateUI(0);
-    updateWindyWidget(lat, lon);
-    accessType.textContent = 'Free Access';
-    updateUpdateTime();
+        weatherData = normalizeOpenMeteo(omData, name);
+        currentCity.textContent = name;
+        updateUI(0);
+        updateWindyWidget(lat, lon);
+        accessType.textContent = 'Free Access';
+        updateUpdateTime();
+    } catch (error) {
+        console.error('Open-Meteo Error:', error);
+        showToast(i18n[currentLang].chartNoData);
+    }
 }
 
 function updateUpdateTime() {
@@ -228,7 +239,7 @@ function normalizeOpenMeteo(om, name) {
         0: { desc: 'Ясно', icon: 'c01d', code: 800 },
         1: { desc: 'Переважно ясно', icon: 'c02d', code: 801 },
         2: { desc: 'Хмарно', icon: 'c03d', code: 802 },
-        3: { desc: 'Пасмурно', icon: 'c04d', code: 804 },
+        3: { desc: 'Похмуро', icon: 'c04d', code: 804 },
         45: { desc: 'Туман', icon: 'a05d', code: 741 },
         51: { desc: 'Мряка', icon: 'd01d', code: 300 },
         61: { desc: 'Дощ', icon: 'r01d', code: 500 },
@@ -262,7 +273,7 @@ function normalizeOpenMeteo(om, name) {
                 // These are for the main widget when selected
                 temp: om.daily.temperature_2m_max[i],
                 app_temp: om.daily.temperature_2m_max[i] - 2,
-                rh: 60,
+                rh: 60, // Placeholder: Open-Meteo daily forecast does not include relative humidity
                 wind_spd: om.daily.wind_gusts_10m_max[i] / 4,
                 weather: wmo
             };
@@ -531,6 +542,19 @@ function updateCurrentDate() {
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
     const loc = currentLang === 'uk' ? 'uk-UA' : 'en-US';
     currentDate.textContent = new Date().toLocaleDateString(loc, options);
+}
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<span>⚠️</span> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s ease-out';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
 }
 
 function updateCopyrightYear() {
