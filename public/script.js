@@ -211,7 +211,9 @@ async function loadWeatherData(userId, sig = '', forceRefresh = false) {
                 accessType.textContent = i18n[currentLang].premiumStatus;
             }
             updateUI(0); // Show today by default
-            updateWindyWidget(data.lat || DEFAULT_LAT, data.lon || DEFAULT_LON);
+            const lat = data.user?.lat || data.lat || DEFAULT_LAT;
+            const lon = data.user?.lon || data.lon || DEFAULT_LON;
+            updateWindyWidget(lat, lon);
             updateUpdateTime();
         }
     } catch (error) {
@@ -349,9 +351,9 @@ function getPremiumIcon(code) {
         'c03d': 'cloudy', 'c03n': 'cloudy',
         'c04d': 'overcast-day', 'c04n': 'overcast-night',
         'a01d': 'mist', 'a05d': 'fog',
-        'r01d': 'rain', 'r02d': 'heavy-rain', 'r03d': 'heavy-rain',
+        'r01d': 'rain', 'r02d': 'rain', 'r03d': 'rain',
         'd01d': 'drizzle', 'd02d': 'drizzle', 'd03d': 'drizzle',
-        's01d': 'snow', 's02d': 'heavy-snow', 's04d': 'sleet',
+        's01d': 'snow', 's02d': 'snow', 's04d': 'sleet',
         't01d': 'thunderstorms-day', 't02d': 'thunderstorms-day', 't04d': 'thunderstorms-rain'
     };
 
