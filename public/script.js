@@ -261,7 +261,13 @@ async function loadWeatherData(userId, sig = '', forceRefresh = false) {
         } else {
             const refreshPart = forceRefresh ? '&refresh=true' : '';
             const sigPart = sig ? `&sig=${sig}` : '';
-            const response = await fetch(`${API_URL}?user=${userId}${sigPart}${refreshPart}`);
+            const tgWebApp = window.Telegram?.WebApp;
+            
+            let url = `${API_URL}?user=${userId}${sigPart}${refreshPart}`;
+            if (tgWebApp?.initData) {
+                url += `&initData=${encodeURIComponent(tgWebApp.initData)}`;
+            }
+            const response = await fetch(url);
             
             if (!response.ok) {
                 // FALLBACK: if not authorized (missing/invalid sig), show free version instead of error
