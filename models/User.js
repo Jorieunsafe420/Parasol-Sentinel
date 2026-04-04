@@ -17,7 +17,8 @@ const UserSchema = new mongoose.Schema({
     notificationsEnabled: { type: Boolean, default: true },
     units: {
         wind: { type: String, default: 'ms' },       // 'ms' = м/с, 'kmh' = км/год
-        pressure: { type: String, default: 'mmhg' }  // 'mmhg' = мм рт.ст., 'hpa' = гПа
+        pressure: { type: String, default: 'mmhg' }, // 'mmhg' = мм рт.ст., 'hpa' = гПа
+        temp: { type: String, default: 'c' }         // 'c' = Цельсій, 'f' = Фаренгейт
     },
     createdAt: { type: Date, default: Date.now }
 });
