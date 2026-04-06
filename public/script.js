@@ -328,7 +328,7 @@ async function loadWeatherData(userId, sig = '', forceRefresh = false) {
 
 async function fetchOpenMeteo(lat, lon, name) {
     try {
-        const omResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,wind_speed_10m,precipitation,precipitation_probability,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,visibility_max&timezone=auto`);
+        const omResponse = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,wind_speed_10m,precipitation,precipitation_probability,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,visibility_max&timezone=auto`);
         if (!omResponse.ok) return;
         const omData = await omResponse.json();
 
@@ -381,6 +381,7 @@ function normalizeOpenMeteo(om, name) {
                 max_temp: om.daily.temperature_2m_max[i],
                 min_temp: om.daily.temperature_2m_min[i],
                 pop: om.daily.precipitation_probability_max[i],
+                precip: om.daily.precipitation_sum ? om.daily.precipitation_sum[i] : 0,
                 sunrise: om.daily.sunrise[i],
                 sunset: om.daily.sunset[i],
                 uv: om.daily.uv_index_max[i],
@@ -431,7 +432,8 @@ function updateUI(dayIndex) {
     document.getElementById('wind-gust').textContent = fullWindStr;
 
     document.getElementById('humidity-val').textContent = `${day.rh}%`;
-    document.getElementById('precip-prob').textContent = `${details.pop}%`;
+    const precipVal = details.precip !== undefined ? details.precip.toFixed(1) : 0;
+    document.getElementById('precip-prob').textContent = `${details.pop}% (${precipVal} мм)`;
     document.getElementById('vis-val').textContent = `${Math.round(details.vis)} ${i18n[currentLang].units.km}`;
     // Pressure: use hourly data from OM (index 0 for now) if today, or fallback.
     const hPress = weatherData.hourly?.surface_pressure?.[isToday ? 0 : dayIndex * 24];
