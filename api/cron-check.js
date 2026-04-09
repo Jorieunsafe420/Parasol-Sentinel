@@ -100,14 +100,14 @@ module.exports = async (req, res) => {
                                 .replace('{desc}', current.weather.description));
                         }
 
-                        const sig = generateSignature(user.telegramId, process.env.CRON_SECRET);
+                        //const sig = generateSignature(user.telegramId, process.env.CRON_SECRET);
                         await bot.telegram.sendMessage(user.telegramId, alerts.join('\n\n'), {
                             parse_mode: 'Markdown',
-                            reply_markup: {
+                            /*reply_markup: {
                                 inline_keyboard: [[
                                     { text: alertsDict[lang].details, url: formatUrl(process.env.DOMAIN, `/?user=${user.telegramId}&sig=${sig}`) }
                                 ]]
-                            }
+                            }*/
                         });
                         alertsTotal++;
                     }
